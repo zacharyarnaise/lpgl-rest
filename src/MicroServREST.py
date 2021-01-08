@@ -5,6 +5,7 @@ Zachary Arnaise
 import json
 import os
 import pickle
+from threading import Lock
 
 import falcon
 from dicttoxml import dicttoxml
@@ -16,28 +17,64 @@ from Utils import *
 class User(object):
     """Représente un utilisateur."""
 
-    def __init__(
-        self, name: str, address: str, email: str, job: str, favoriteColour: str
-    ):
-        self.name = name
-        self.address = address
-        self.email = email
-        self.job = job
-        self.favoriteColour = favoriteColour
+    def __init__(self, dataDict):
+        self.name = ""
+        self.address = ""
+        self.email = ""
+        self.job = ""
+        self.favoriteColour = ""
+        for k, v in dataDict.items():
+            if hasattr(self, k):
+                setattr(self, k, v)
 
 
-class UtilisateursResource(object):
+# C'est sale mais dans le cadre de cet exercice c'est suffsiant.
+# Une solution bien plus propre pour le projet serait d'utiliser un SGBD et un ORM (SQLite et SQLAlchemy par ex.).
+USERS_LIST = None
+USERS_LIST_LOCK = Lock()
+
+
+class UtilisateursCollection(object):
     def __init__(self):
-        open("./users.pkl", "a")
-        try:
-            self.usersList = pickle.load(open("./users.pkl", "rb"))
-        except EOFError:
-            self.usersList = list()
+        global USERS_LIST
+        USERS_LIST_LOCK.acquire()
+        if not USERS_LIST:
+            open("./users.pkl", "a")
+            try:
+                USERS_LIST = pickle.load(open("./users.pkl", "rb"))
+            except EOFError:
+                USERS_LIST = list()
+        USERS_LIST_LOCK.release()
 
-    def __del__(self):
-        pickle.dump(self.usersList, open("./users.pkl", "wb"))
+    def on_post(self, req, resp):
+        global USERS_LIST
+        try:
+            data = json.load(req.stream)
+        except json.decoder.JSONDecodeError:
+            resp.status = falcon.HTTP_400
+            return
+
+        USERS_LIST_LOCK.acquire()
+        USERS_LIST.append(User(data))
+        pickle.dump(USERS_LIST, open("./users.pkl", "wb"))
+        USERS_LIST_LOCK.release()
+        resp.status = falcon.HTTP_200
+
+
+class UtilisateurResource(object):
+    def __init__(self):
+        global USERS_LIST
+        USERS_LIST_LOCK.acquire()
+        if not USERS_LIST:
+            open("./users.pkl", "a")
+            try:
+                USERS_LIST = pickle.load(open("./users.pkl", "rb"))
+            except EOFError:
+                USERS_LIST = list()
+        USERS_LIST_LOCK.release()
 
     def on_get(self, req, resp, id):
+        global USERS_LIST
         # Détermination du Content-Type et Content-Language à utiliser
         accept = req.get_header("Accept")
         contentType = Utils.getAdequateContentType(
@@ -52,10 +89,12 @@ class UtilisateursResource(object):
             return
 
         wantedUser = None
-        for i, user in enumerate(self.usersList):
+        USERS_LIST_LOCK.acquire()
+        for i, user in enumerate(USERS_LIST):
             if id == i:
                 wantedUser = user
                 break
+        USERS_LIST_LOCK.release()
 
         if not wantedUser:
             # Pas d'utilisateur avec l'id donné trouvé
@@ -78,7 +117,8 @@ class UtilisateursResource(object):
             resp.status = falcon.HTTP_200
 
 
-def app():
-    app = falcon.API()
-    utilisateurs = UtilisateursResource()
-    app.add_route("/api/utilisateurs/{id}", utilisateurs)
+app = falcon.API()
+utilisateursCollection = UtilisateursCollection()
+app.add_route("/api/utilisateurs", utilisateursCollection)
+utilisateur = UtilisateurResource()
+app.add_route("/api/utilisateurs/{id}", utilisateur)
