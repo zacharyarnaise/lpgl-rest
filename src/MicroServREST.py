@@ -60,7 +60,6 @@ class UtilisateursCollection(object):
         USERS_LIST_LOCK.release()
         resp.status = falcon.HTTP_200
 
-
 class UtilisateurResource(object):
     def __init__(self):
         global USERS_LIST
