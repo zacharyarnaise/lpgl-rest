@@ -1,4 +1,4 @@
-""" TD REST - 12/12/2020
+""" LPGL - IUT Metz
 Zachary Arnaise
 """
 
@@ -8,7 +8,7 @@ class Utils:
     Classe d'utilitaires utilisés pour cet exercice.
     """
 
-    def _parseAndOrder(content):
+    def _parseAndOrder(content: str) -> list:
         """
         Parse le contenu d'un header `Accept` ou `Accept-Language` et retourne
         une list avec les valeurs ordonnées selon leur valeur de qualité (`q=`).
@@ -42,7 +42,7 @@ class Utils:
         }
         return list(result.keys())
 
-    def getAdequateContentType(accept, contentTypes):
+    def getAdequateContentType(accept: str, contentTypes: list) -> str:
         """
         Détermine le Content-Type à utiliser en fonction de la valeur de l'header Accept.
 
@@ -87,7 +87,7 @@ class Utils:
         # Aucune correspondance
         return None
 
-    def getAdequateLanguage(acceptLanguage, contentLanguages):
+    def getAdequateLanguage(acceptLanguage: str, contentLanguages: list) -> str:
         """
         Détermine le Content-Language à utiliser en fonction de la valeur de l'header Accept-Language.
 
