@@ -6,7 +6,7 @@ Réalisé dans le cadre de la Licence pro Métiers du génie logiciel à l'IUT d
 
 ---
 
-### Instructions pour démarrer le serveur RESET
+### Instructions pour démarrer le serveur REST
 * Installer [Docker](https://www.docker.com/) sur votre machine
 * Cloner le repository: `git clone https://github.com/zacharyarnaise/lpgl-rest.git`
 * Ouvrir un terminal à la racine du projet puis lancer le serveur avec la commande:
