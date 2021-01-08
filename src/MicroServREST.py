@@ -1,21 +1,41 @@
-""" TD REST - 12/12/2020
+""" LPGL - IUT Metz
 Zachary Arnaise
 """
 
 import json
+import os
+import pickle
 
 import falcon
 from dicttoxml import dicttoxml
-from faker import Faker
 from waitress import serve
 
 from Utils import *
 
 
+class User(object):
+    """Représente un utilisateur."""
+
+    def __init__(
+        self, name: str, address: str, email: str, job: str, favoriteColour: str
+    ):
+        self.name = name
+        self.address = address
+        self.email = email
+        self.job = job
+        self.favoriteColour = favoriteColour
+
+
 class UtilisateursResource(object):
     def __init__(self):
-        self.faker_en = Faker("en_US")
-        self.faker_fr = Faker("fr_FR")
+        open("./users.pkl", "a")
+        try:
+            self.usersList = pickle.load(open("./users.pkl", "rb"))
+        except EOFError:
+            self.usersList = list()
+
+    def __del__(self):
+        pickle.dump(self.usersList, open("./users.pkl", "wb"))
 
     def on_get(self, req, resp, id):
         # Détermination du Content-Type et Content-Language à utiliser
@@ -31,28 +51,34 @@ class UtilisateursResource(object):
             resp.status = falcon.HTTP_406
             return
 
-        # Génération de data bidon en fonction du langage voulu par le client
-        faker = self.faker_en if contentLanguage == "en-US" else self.faker_fr
-        fooUser = {
-            "id": int(id),
-            "name": faker.name(),
-            "address": faker.address(),
-            "email": faker.ascii_free_email(),
-            "job": faker.job(),
-            "favoriteColour": faker.color_name(),
-        }
+        wantedUser = None
+        for i, user in enumerate(self.usersList):
+            if id == i:
+                wantedUser = user
+                break
 
-        # Données en JSON ou XML selon le Content-Type
-        resp.body = (
-            dicttoxml(fooUser, custom_root="user")
-            if contentType == "application/xml"
-            else json.dumps(fooUser)
-        )
-        resp.content_type = contentType
-        resp.content_language = contentLanguage
-        resp.status = falcon.HTTP_200
+        if not wantedUser:
+            # Pas d'utilisateur avec l'id donné trouvé
+            body = {"error": "No user matches the given ID"}
+            resp.body = (
+                dicttoxml(body, root=False)
+                if contentType == "application/xml"
+                else json.dumps(body)
+            )
+            resp.content_type = contentType
+            resp.status = falcon.HTTP_404
+        else:
+            resp.body = (
+                dicttoxml(wantedUser, custom_root="user")
+                if contentType == "application/xml"
+                else json.dumps(wantedUser)
+            )
+            resp.content_type = contentType
+            resp.content_language = contentLanguage
+            resp.status = falcon.HTTP_200
 
 
-app = falcon.API()
-utilisateurs = UtilisateursResource()
-app.add_route("/api/utilisateurs/{id}", utilisateurs)
+def app():
+    app = falcon.API()
+    utilisateurs = UtilisateursResource()
+    app.add_route("/api/utilisateurs/{id}", utilisateurs)
