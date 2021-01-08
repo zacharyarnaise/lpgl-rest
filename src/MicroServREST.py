@@ -116,6 +116,36 @@ class UtilisateurResource(object):
             resp.content_language = contentLanguage
             resp.status = falcon.HTTP_200
 
+    def on_patch(self, req, resp, id):
+        global USERS_LIST
+        try:
+            data = json.load(req.stream)
+        except json.decoder.JSONDecodeError:
+            resp.status = falcon.HTTP_400
+            return
+
+        wantedUser = None
+        USERS_LIST_LOCK.acquire()
+        for i, user in enumerate(USERS_LIST):
+            if id == i:
+                wantedUser = user
+                break
+        USERS_LIST_LOCK.release()
+        if not wantedUser:
+            # Pas d'utilisateur avec l'id donné trouvé
+            resp.body = json.dumps({"error": "No user matches the given ID"})
+            resp.status = falcon.HTTP_404
+            return
+
+        modifiedUser = wantedUser
+        modifiedUser = {k: v for (k, v) in data.items() if k in wantedUser}
+
+        USERS_LIST_LOCK.acquire()
+        USERS_LIST[id] = modifiedUser
+        pickle.dump(USERS_LIST, open("./users.pkl", "wb"))
+        USERS_LIST_LOCK.release()
+        resp.status = falcon.HTTP_200
+
 
 app = falcon.API()
 utilisateursCollection = UtilisateursCollection()
